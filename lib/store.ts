@@ -25,18 +25,24 @@ const debugMiddleware: Middleware = (api) => (next) => (action) => {
   return next(action);
 };
 
+// create configureStore
 export const store = configureStore({
   reducer: {
     counter: counterReducer,
   },
+
+  // create middleware
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware().prepend(debugMiddleware, listenerMiddleware.middleware),
 });
 
+// export hooks for using 
 export type RootState = ReturnType<typeof store.getState>;
 export type AppDispatch = typeof store.dispatch;
 export type AppStore = typeof store;
 
+
+// create for debugging 
 const startAppListening = listenerMiddleware.startListening.withTypes<
   RootState,
   AppDispatch
