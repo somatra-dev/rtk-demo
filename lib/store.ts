@@ -1,4 +1,8 @@
-import { configureStore, createListenerMiddleware } from "@reduxjs/toolkit";
+import {
+  configureStore,
+  createListenerMiddleware,
+  type Middleware,
+} from "@reduxjs/toolkit";
 import counterReducer, {
   incrementAsync,
   incrementAsyncFinished,
@@ -8,12 +12,25 @@ import counterReducer, {
 
 const listenerMiddleware = createListenerMiddleware();
 
+const debugMiddleware: Middleware = (api) => (next) => (action) => {
+  if (process.env.NODE_ENV !== "production") {
+    const prevState = api.getState();
+    console.debug("[redux] dispatch", action);
+    const result = next(action);
+    const nextState = api.getState();
+    console.debug("[redux] state change", { prevState, nextState });
+    return result;
+  }
+
+  return next(action);
+};
+
 export const store = configureStore({
   reducer: {
     counter: counterReducer,
   },
   middleware: (getDefaultMiddleware) =>
-    getDefaultMiddleware().prepend(listenerMiddleware.middleware),
+    getDefaultMiddleware().prepend(debugMiddleware, listenerMiddleware.middleware),
 });
 
 export type RootState = ReturnType<typeof store.getState>;
@@ -28,6 +45,12 @@ const startAppListening = listenerMiddleware.startListening.withTypes<
 startAppListening({
   actionCreator: incrementAsync,
   effect: async (action, listenerApi) => {
+    if (process.env.NODE_ENV !== "production") {
+      console.debug("[listener] incrementAsync started", {
+        amount: action.payload,
+      });
+    }
+
     listenerApi.cancelActiveListeners();
     listenerApi.dispatch(incrementAsyncStarted());
 
@@ -36,6 +59,9 @@ startAppListening({
       listenerApi.dispatch(incrementByAmount(action.payload));
     } finally {
       listenerApi.dispatch(incrementAsyncFinished());
+      if (process.env.NODE_ENV !== "production") {
+        console.debug("[listener] incrementAsync finished");
+      }
     }
   },
 });
